@@ -7,6 +7,7 @@ import android.transition.ChangeBounds
 import android.transition.Transition
 import android.transition.TransitionManager
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -20,7 +21,7 @@ import androidx.core.content.ContextCompat
 class CurvedOutsideBottomNav : ConstraintLayout {
 
     companion object {
-        private const val TAG = "MyCustomBottom"
+        private const val TAG = "CurvedOutsideBottomNav"
     }
 
     private val MAIN_CONSTRAINT_SET = ConstraintSet()
@@ -42,7 +43,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
     }
 
     private fun setup(){
-        minimumHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigatwion_height)
+        minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
         setPadding(
             0,
             context.resources.getDimensionPixelSize(R.dimen.default_padding_top),
@@ -50,6 +51,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             0
         )
     }
+
 
     fun addItemsMenu(items: List<CurvedOutsideBotNavItem>) {
 

@@ -2,7 +2,7 @@
 <resources>
     <dimen name="default_corner">11dp</dimen>
     <dimen name="bottom_navigation_top_bot_margin">5dp</dimen>
-    <dimen name="min_bottom_navigatwion_height">56dp</dimen>
+    <dimen name="min_bottom_navigation_height">56dp</dimen>
     <dimen name="default_padding_top">10dp</dimen>
     <dimen name="bottom_navigation_icon_size">40dp</dimen>
     <dimen name="bottom_navigation_title_size">12sp</dimen>
