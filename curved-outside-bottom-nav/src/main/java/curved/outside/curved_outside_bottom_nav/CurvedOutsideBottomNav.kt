@@ -34,15 +34,21 @@ class CurvedOutsideBottomNav : ConstraintLayout {
     private var currentAnchorLocationId = 0
 
     constructor(context: Context) : super(context) {
-        this.setMinimumHeight()
+        this.setup()
     }
 
     constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
-        this.setMinimumHeight()
+        this.setup()
     }
 
-    private fun setMinimumHeight(){
+    private fun setup(){
         minimumHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigatwion_height)
+        setPadding(
+            0,
+            context.resources.getDimensionPixelSize(R.dimen.default_padding_top),
+            0,
+            0
+        )
     }
 
     fun addItemsMenu(items: ArrayList<CurvedOutsideBotNavItem>) {
