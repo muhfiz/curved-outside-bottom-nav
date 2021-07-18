@@ -24,12 +24,13 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         private const val TAG = "CurvedOutsideBottomNav"
     }
 
+    var onItemSelectedListener: OnItemSelectedListener? = null
+
     private val MAIN_CONSTRAINT_SET = ConstraintSet()
     private val ITEM_ON_CONSTRAINT_SET = ConstraintSet()
     private val ITEM_OFF_CONSTRAINT_SET = ConstraintSet()
 
     private var anchorId = 0
-    private var onItemSelectedListener: OnItemSelectedListener? = null
     private var radiusValue = 0f
     private var color = 0
     private var currentAnchorLocationId = 0
