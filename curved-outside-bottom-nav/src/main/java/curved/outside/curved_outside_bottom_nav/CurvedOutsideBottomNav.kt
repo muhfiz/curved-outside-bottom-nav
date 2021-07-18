@@ -51,7 +51,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         )
     }
 
-    fun addItemsMenu(items: ArrayList<CurvedOutsideBotNavItem>) {
+    fun addItemsMenu(items: List<CurvedOutsideBotNavItem>) {
 
         val typedValue = TypedValue()
         context.theme.resolveAttribute(R.attr.colorPrimary, typedValue, true)
@@ -204,7 +204,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
     private fun setPositionContainer(
         pos: Int,
-        items: ArrayList<CurvedOutsideBotNavItem>
+        items: List<CurvedOutsideBotNavItem>
     ) {
         val containerId = items[pos].id
 
