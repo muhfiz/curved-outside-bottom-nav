@@ -45,12 +45,6 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
     private fun setup(){
         minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
-        setPadding(
-            0,
-            context.resources.getDimensionPixelSize(R.dimen.default_padding_top),
-            0,
-            0
-        )
     }
 
 
