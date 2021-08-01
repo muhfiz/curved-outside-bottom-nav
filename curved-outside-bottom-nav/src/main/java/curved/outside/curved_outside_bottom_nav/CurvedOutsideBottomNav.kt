@@ -45,12 +45,6 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
     private fun setup(){
         minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
-        setPadding(
-            0,
-            context.resources.getDimensionPixelSize(R.dimen.default_padding_top),
-            0,
-            0
-        )
     }
 
 
@@ -78,7 +72,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
         setupItemMode(iconId, titleId, itemTopBotMargin)
 
-        for (pos in 0 until items.size) {
+        for (pos in items.indices) {
 
             val item = items[pos]
             val container = ConstraintLayout(context)
@@ -174,7 +168,6 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             titleId, ConstraintSet.END,
             ConstraintSet.PARENT_ID, ConstraintSet.END
         )
-
         ITEM_OFF_CONSTRAINT_SET.connect(
             iconId, ConstraintSet.TOP,
             ConstraintSet.PARENT_ID, ConstraintSet.TOP
@@ -356,6 +349,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         layoutParamsMatchConstraint = LayoutParams(
             LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_CONSTRAINT
         )
+
         //creating handlerBottomCorner
         gradientDrawable = GradientDrawable()
         handler = View(context)

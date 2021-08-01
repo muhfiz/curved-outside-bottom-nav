@@ -9,6 +9,7 @@
     <curved.outside.curved_outside_bottom_nav.CurvedOutsideBottomNav
         android:id="@+id/nav"
         android:layout_width="0dp"
+        android:background="@color/black"
         android:layout_height="wrap_content"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintLeft_toLeftOf="parent"
