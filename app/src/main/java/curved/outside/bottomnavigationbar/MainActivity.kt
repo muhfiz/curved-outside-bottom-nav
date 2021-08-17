@@ -21,7 +21,9 @@ class MainActivity : AppCompatActivity() {
         curvedOutsideBottomNav.onItemSelectedListener =
             object : CurvedOutsideBottomNav.OnItemSelectedListener {
                 override fun onClickListener(view: View) {
-                    Log.d(TAG, "onClickListener: ${view.id}")
+                    supportFragmentManager.beginTransaction().apply {
+                        replace(R.id.container, WebViewFragment.newInstance("https://www.google.com"))
+                    }.commit()
                 }
             }
         setupNavigationBar(curvedOutsideBottomNav)

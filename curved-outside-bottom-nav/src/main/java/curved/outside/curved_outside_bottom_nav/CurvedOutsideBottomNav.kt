@@ -7,7 +7,6 @@ import android.transition.ChangeBounds
 import android.transition.Transition
 import android.transition.TransitionManager
 import android.util.AttributeSet
-import android.util.Log
 import android.util.TypedValue
 import android.view.View
 import android.view.animation.OvershootInterpolator
@@ -35,6 +34,12 @@ class CurvedOutsideBottomNav : ConstraintLayout {
     private var color = 0
     private var currentAnchorLocationId = 0
 
+    private val changeBounds = ChangeBounds()
+    private val myTransitionListener = CurvedOutsideTransitionManager()
+
+    private val itemTopBotMargin =
+        context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_top_bot_margin)
+
     constructor(context: Context) : super(context) {
         this.setup()
     }
@@ -43,8 +48,9 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         this.setup()
     }
 
-    private fun setup(){
+    private fun setup() {
         minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
+        setupChangeBoundsTransition()
     }
 
 
@@ -55,10 +61,9 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         radiusValue = context.resources.getDimension(R.dimen.default_corner)
         color = ContextCompat.getColor(context, typedValue.resourceId)
 
-        val titleTextSize = context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_title_size)
-        val itemTopBotMargin = context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_top_bot_margin)
+        val titleTextSize =
+            context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_title_size)
 
-        setBackgroundResource(R.drawable.half_background)
         val handlerTopLeftCornerId = View.generateViewId()
         val handlerTopRightCornerid = View.generateViewId()
         anchorId = View.generateViewId()
@@ -72,7 +77,7 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
         setupItemMode(iconId, titleId, itemTopBotMargin)
 
-        for (pos in 0 until items.size) {
+        for (pos in items.indices) {
 
             val item = items[pos]
             val container = ConstraintLayout(context)
@@ -102,13 +107,12 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             ITEM_OFF_CONSTRAINT_SET.applyTo(container)
 
             container.setOnClickListener {
-                moveAnchorTo(it.id)
-                onItemSelectedListener?.onClickListener(it)
+                moveAnchorTo(it.id, it)
             }
 
             this.addView(
                 container, LayoutParams(
-                    LayoutParams.MATCH_CONSTRAINT, LayoutParams.WRAP_CONTENT
+                    LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_PARENT
                 )
             )
 
@@ -123,6 +127,10 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             }
         }
 
+        MAIN_CONSTRAINT_SET.constrainHeight(
+            anchorId,
+            (radiusValue + itemTopBotMargin).toInt()
+        )
         moveAnchorTo(items[0].id)
         MAIN_CONSTRAINT_SET.applyTo(this)
 
@@ -238,10 +246,13 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         )
     }
 
-    private fun moveAnchorTo(id: Int) {
-
-        val changeBounds = ChangeBounds()
+    private fun setupChangeBoundsTransition() {
         changeBounds.interpolator = OvershootInterpolator()
+        changeBounds.addListener(myTransitionListener)
+    }
+
+    private fun moveAnchorTo(id: Int, view: View? = null) {
+        myTransitionListener.clickedView = view
         TransitionManager.beginDelayedTransition(this, changeBounds as Transition)
         MAIN_CONSTRAINT_SET.connect(
             anchorId, ConstraintSet.START,
@@ -252,16 +263,12 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             id, ConstraintSet.END
         )
         MAIN_CONSTRAINT_SET.connect(
-            anchorId, ConstraintSet.TOP,
-            id, ConstraintSet.TOP
-        )
-        MAIN_CONSTRAINT_SET.connect(
             anchorId, ConstraintSet.BOTTOM,
-            id, ConstraintSet.BOTTOM
+            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
         )
-
         if (currentAnchorLocationId != 0) {
-            val currentAnchorLocationView = this.findViewById<ConstraintLayout>(currentAnchorLocationId)
+            val currentAnchorLocationView =
+                this.findViewById<ConstraintLayout>(currentAnchorLocationId)
             ITEM_OFF_CONSTRAINT_SET.applyTo(currentAnchorLocationView)
             setItemToUnselectedState(
                 currentAnchorLocationView.getChildAt(0) as ImageView,
@@ -280,12 +287,12 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         ITEM_ON_CONSTRAINT_SET.applyTo(currentAnchorLocationView)
     }
 
-    private fun setItemToSelectedState(icon: ImageView, title: TextView){
+    private fun setItemToSelectedState(icon: ImageView, title: TextView) {
         icon.setColorFilter(color)
         title.setTextColor(color)
     }
 
-    private fun setItemToUnselectedState(icon: ImageView, title: TextView){
+    private fun setItemToUnselectedState(icon: ImageView, title: TextView) {
         icon.setColorFilter(Color.WHITE)
         title.setTextColor(Color.WHITE)
     }
@@ -296,7 +303,6 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         } else {
             ConstraintSet.END
         }
-
         MAIN_CONSTRAINT_SET.connect(
             handlerId, oppositePos,
             ConstraintSet.PARENT_ID, oppositePos
@@ -351,15 +357,34 @@ class CurvedOutsideBottomNav : ConstraintLayout {
             LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_CONSTRAINT
         )
         //creating handlerBottomCorner
-        gradientDrawable = GradientDrawable()
-        handler = View(context)
-        gradientDrawable.setColor(Color.WHITE)
-        gradientDrawable.cornerRadii = floatArrayOf(
-            0f, 0f, 0f, 0f, radiusValue, radiusValue, radiusValue, radiusValue
-        )
-        handler.background = gradientDrawable
-        handler.id = anchorId
-        addView(handler, layoutParamsMatchConstraint)
+        val anchor = CurvedOutsideTop(context, radiusValue)
+        val typedValue = TypedValue()
+        context.theme.resolveAttribute(R.attr.colorPrimary, typedValue, true)
+        anchor.setColor(ContextCompat.getColor(context, typedValue.resourceId))
+
+        anchor.id = anchorId
+        addView(anchor, layoutParamsMatchConstraint)
+    }
+
+    private inner class CurvedOutsideTransitionManager : Transition.TransitionListener {
+
+        var clickedView: View? = null
+        override fun onTransitionStart(p0: Transition?) {}
+
+        override fun onTransitionEnd(p0: Transition?) {
+            post {
+                clickedView?.let {
+                    onItemSelectedListener?.onClickListener(it)
+                }
+            }
+        }
+
+        override fun onTransitionCancel(p0: Transition?) {}
+
+        override fun onTransitionPause(p0: Transition?) {}
+
+        override fun onTransitionResume(p0: Transition?) {}
+
     }
 
     interface OnItemSelectedListener {

@@ -4,9 +4,9 @@
     android:viewportWidth="24"
     android:viewportHeight="24">
     <path
-        android:fillColor="?attr/colorPrimary"
+        android:fillColor="@android:color/holo_green_light"
         android:pathData="M0,12 l24,0 l0,12 l-24, 0z"/>
     <path
-        android:fillColor="@android:color/white"
+        android:fillColor="@android:color/holo_blue_bright"
         android:pathData="M0,0 l24,0 l0,12 l-24, 0z"/>
 </vector>
