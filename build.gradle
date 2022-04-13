@@ -17,11 +17,7 @@ buildscript {
 allprojects {
     repositories {
         google()
-<<<<<<< HEAD
         mavenCentral()// Warning: this repository is going to shut down soon
-=======
-        mavenCentral()
->>>>>>> old-state
     }
 }
 

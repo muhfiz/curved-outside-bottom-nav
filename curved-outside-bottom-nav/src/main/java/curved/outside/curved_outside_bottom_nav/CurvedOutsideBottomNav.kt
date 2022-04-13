@@ -50,6 +50,11 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
         context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_top_bot_margin)
 
     private val itemViews: ArrayList<Item> = ArrayList()
+    var animationDuration: Long
+        get() = changeBounds.duration
+        set(value) {
+            changeBounds.duration = value
+        }
 
     init {
 
@@ -73,12 +78,6 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
 
     }
 
-<<<<<<< HEAD
-    private fun setup(){
-        minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
-    }
-=======
->>>>>>> old-state
 
     fun setItemsMenu(items: List<CurvedOutsideBotNavItem>, startAnchor: Int = 0, titleFont: Typeface? = null) {
 
@@ -264,76 +263,12 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
 
     private fun moveAnchorTo(index: Int, animated: Boolean = true) {
 
-<<<<<<< HEAD
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.BOTTOM,
-            titleId, ConstraintSet.TOP
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-    }
-=======
         if (animated) {
             TransitionManager.beginDelayedTransition(
                 this, changeBounds as Transition
             )
 
         }
->>>>>>> old-state
 
         mainConstraintSet.apply {
 

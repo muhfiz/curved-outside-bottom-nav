@@ -2,10 +2,6 @@
 <resources>
     <dimen name="default_corner">11dp</dimen>
     <dimen name="bottom_navigation_top_bot_margin">5dp</dimen>
-<<<<<<< HEAD
-    <dimen name="min_bottom_navigation_height">46dp</dimen>
-=======
->>>>>>> old-state
     <dimen name="default_padding_top">10dp</dimen>
     <dimen name="bottom_navigation_icon_size">40dp</dimen>
     <dimen name="bottom_navigation_title_size">12sp</dimen>
