@@ -40,6 +40,7 @@ class CurvedOutsideTop : View {
     override fun onDraw(canvas: Canvas?) {
         //the most accurate currently
         if(radius != 0f){
+            path.reset()
             path.moveTo(0f, 0f)
             path.cubicTo(
                 0f,radius / 2,

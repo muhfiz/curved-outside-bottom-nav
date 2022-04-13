@@ -1,13 +1,20 @@
 package curved.outside.curved_outside_bottom_nav
 
+import android.animation.TimeInterpolator
 import android.content.Context
 import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
+import android.os.Bundle
+import android.os.Parcelable
 import android.transition.ChangeBounds
 import android.transition.Transition
 import android.transition.TransitionManager
 import android.util.AttributeSet
+import android.util.Log
 import android.util.TypedValue
+import android.view.Gravity
 import android.view.View
 import android.view.animation.OvershootInterpolator
 import android.widget.ImageView
@@ -15,281 +22,326 @@ import android.widget.TextView
 import androidx.constraintlayout.widget.ConstraintLayout
 import androidx.constraintlayout.widget.ConstraintSet
 import androidx.core.content.ContextCompat
+import kotlin.math.ceil
 
 
-class CurvedOutsideBottomNav : ConstraintLayout {
+class CurvedOutsideBottomNav @JvmOverloads constructor(
+    context: Context, attrs: AttributeSet? = null
+) : ConstraintLayout(context, attrs) {
 
-    companion object {
-        private const val TAG = "CurvedOutsideBottomNav"
+    var onItemSelectedListener: ((prevPos: Int, pos: Int) -> Unit)? = null
+
+    private var anchorId = View.generateViewId()
+    private val mainConstraintSet = ConstraintSet().apply {
+        setTranslationZ(
+            anchorId,
+            context.resources.getDimension(
+                R.dimen.z_curved_outside_bottom_nav_anchor_item
+            )
+        )
     }
-
-    var onItemSelectedListener: OnItemSelectedListener? = null
-
-    private val MAIN_CONSTRAINT_SET = ConstraintSet()
-    private val ITEM_ON_CONSTRAINT_SET = ConstraintSet()
-    private val ITEM_OFF_CONSTRAINT_SET = ConstraintSet()
-
-    private var anchorId = 0
     private var radiusValue = 0f
-    private var color = 0
-    private var currentAnchorLocationId = 0
-
+    private var selectedColor = 0
+    private var activeBackgroundColor = Color.WHITE
     private val changeBounds = ChangeBounds()
-    private val myTransitionListener = CurvedOutsideTransitionManager()
 
-    private val itemTopBotMargin =
+
+    private val itemPaddingVertical =
         context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_top_bot_margin)
 
-    constructor(context: Context) : super(context) {
-        this.setup()
-    }
+    private val itemViews: ArrayList<Item> = ArrayList()
 
-    constructor(context: Context, attrs: AttributeSet) : super(context, attrs) {
-        this.setup()
-    }
+    init {
 
-    private fun setup() {
-        minHeight = context.resources.getDimensionPixelSize(R.dimen.min_bottom_navigation_height)
         setupChangeBoundsTransition()
+        attrs?.let {
+            context.theme.obtainStyledAttributes(
+                attrs,
+                R.styleable.CurvedOutsideBottomNav,
+                0, 0
+            ).apply {
+                try {
+                    activeBackgroundColor = getColor(
+                        R.styleable.CurvedOutsideBottomNav_activeBackgroundColor,
+                        Color.WHITE
+                    )
+                } finally {
+                    recycle()
+                }
+            }
+        }
+
     }
 
 
-    fun addItemsMenu(items: List<CurvedOutsideBotNavItem>) {
+    fun setItemsMenu(items: List<CurvedOutsideBotNavItem>, startAnchor: Int = 0, titleFont: Typeface? = null) {
+
+        itemViews.clear()
 
         val typedValue = TypedValue()
         context.theme.resolveAttribute(R.attr.colorPrimary, typedValue, true)
         radiusValue = context.resources.getDimension(R.dimen.default_corner)
-        color = ContextCompat.getColor(context, typedValue.resourceId)
+        selectedColor = ContextCompat.getColor(context, typedValue.resourceId)
 
         val titleTextSize =
             context.resources.getDimensionPixelSize(R.dimen.bottom_navigation_title_size)
 
         val handlerTopLeftCornerId = View.generateViewId()
-        val handlerTopRightCornerid = View.generateViewId()
-        anchorId = View.generateViewId()
+        val handlerTopRightCornerId = View.generateViewId()
 
-        this.createHandlerCorner(handlerTopLeftCornerId, handlerTopRightCornerid)
+        this.createHandlerCorner(handlerTopLeftCornerId, handlerTopRightCornerId)
         this.setHandlerIntoAnchor(handlerTopLeftCornerId, ConstraintSet.START)
-        this.setHandlerIntoAnchor(handlerTopRightCornerid, ConstraintSet.END)
-
-        val iconId = View.generateViewId()
-        val titleId = View.generateViewId()
-
-        setupItemMode(iconId, titleId, itemTopBotMargin)
+        this.setHandlerIntoAnchor(handlerTopRightCornerId, ConstraintSet.END)
 
         for (pos in items.indices) {
 
             val item = items[pos]
-            val container = ConstraintLayout(context)
-            val icon = ImageView(context)
-            val title = TextView(context)
+            val icon = ImageView(context).apply {
+                id = View.generateViewId()
+                setImageResource(item.iconResourceId)
+            }
+            val title = TextView(context).apply {
+                id = View.generateViewId()
+                text = item.title
+                setTextSize(TypedValue.COMPLEX_UNIT_PX, titleTextSize.toFloat())
+                includeFontPadding = false
+                gravity = Gravity.CENTER
+                if(titleFont != null){
+                    typeface = titleFont
+                }
+            }
 
-            icon.id = iconId
-            icon.scaleType = ImageView.ScaleType.FIT_XY
-            icon.setImageResource(item.iconResourceId)
+            itemViews.add(
+                Item(icon, title)
+            )
 
-            title.id = titleId
-            title.text = item.title
-            title.setTextSize(TypedValue.COMPLEX_UNIT_PX, titleTextSize.toFloat())
-            title.includeFontPadding = false
+            this@CurvedOutsideBottomNav.addView(icon)
+            this@CurvedOutsideBottomNav.addView(title)
 
             setItemToUnselectedState(icon, title)
 
-            container.id = item.id
-
-            container.addView(icon)
-            container.addView(
-                title, LayoutParams(
-                    LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_CONSTRAINT
-                )
+            icon.setPadding(
+                0, itemPaddingVertical,
+                0, 0
+            )
+            title.setPadding(
+                0, 0, 0,
+                itemPaddingVertical
             )
 
-            ITEM_OFF_CONSTRAINT_SET.applyTo(container)
-
-            container.setOnClickListener {
-                moveAnchorTo(it.id, it)
+            val onClickListener: (View) -> Unit = {
+                selectItem(pos)
             }
 
-            this.addView(
-                container, LayoutParams(
-                    LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_PARENT
-                )
-            )
+            icon.setOnClickListener(onClickListener)
+            title.setOnClickListener(onClickListener)
 
-            setPositionContainer(pos, items)
-
-            MAIN_CONSTRAINT_SET.setMargin(item.id, ConstraintSet.BOTTOM, itemTopBotMargin)
-            MAIN_CONSTRAINT_SET.setMargin(item.id, ConstraintSet.TOP, itemTopBotMargin)
-            if (pos == 0) {
-                MAIN_CONSTRAINT_SET.setMargin(item.id, ConstraintSet.START, radiusValue.toInt())
-            } else if (pos == items.size - 1) {
-                MAIN_CONSTRAINT_SET.setMargin(item.id, ConstraintSet.END, radiusValue.toInt())
-            }
         }
-
-        MAIN_CONSTRAINT_SET.constrainHeight(
-            anchorId,
-            (radiusValue + itemTopBotMargin).toInt()
+        setPositionItemViews()
+        mainConstraintSet.constrainHeight(
+            anchorId, (radiusValue + itemPaddingVertical).toInt()
         )
-        moveAnchorTo(items[0].id)
-        MAIN_CONSTRAINT_SET.applyTo(this)
+
+        moveAnchorTo(startAnchor, false)
+        mainConstraintSet.applyTo(this)
+    }
+
+    private fun setPositionItemViews() {
+        for (pos in itemViews.indices) {
+
+            mainConstraintSet.apply {
+                if (pos == 0) {
+                    connect(
+                        itemViews[pos].icon.id, ConstraintSet.START,
+                        ConstraintSet.PARENT_ID, ConstraintSet.START
+                    )
+                    setHorizontalChainStyle(
+                        itemViews[pos].icon.id, ConstraintSet.CHAIN_PACKED
+                    )
+                    setMargin(
+                        itemViews[pos].icon.id,
+                        ConstraintSet.START,
+                        context.resources.getDimensionPixelSize(
+                            R.dimen.margin_start_curved_outside_bottom_nav_first_item
+                        )
+                    )
+                } else {
+                    connect(
+                        itemViews[pos].icon.id, ConstraintSet.START,
+                        itemViews[pos - 1].icon.id, ConstraintSet.END
+                    )
+                }
+                connect(
+                    itemViews[pos].icon.id, ConstraintSet.TOP,
+                    ConstraintSet.PARENT_ID, ConstraintSet.TOP
+                )
+                if (pos == itemViews.size - 1) {
+                    connect(
+                        itemViews[pos].icon.id, ConstraintSet.END,
+                        ConstraintSet.PARENT_ID, ConstraintSet.END
+                    )
+                    setMargin(
+                        itemViews[pos].icon.id,
+                        ConstraintSet.END,
+                        context.resources.getDimensionPixelSize(
+                            R.dimen.margin_end_curved_outside_bottom_nav_end_item
+                        )
+                    )
+                } else {
+                    connect(
+                        itemViews[pos].icon.id, ConstraintSet.END,
+                        itemViews[pos + 1].icon.id, ConstraintSet.START
+                    )
+                }
+                connect(
+                    itemViews[pos].icon.id, ConstraintSet.BOTTOM,
+                    itemViews[pos].title.id, ConstraintSet.TOP
+                )
+                constrainWidth(
+                    itemViews[pos].icon.id, ConstraintSet.MATCH_CONSTRAINT
+                )
+                constrainMaxWidth(
+                    itemViews[pos].icon.id,
+                    context.resources.getDimensionPixelSize(
+                        R.dimen.width_max_curved_outside_bottom_nav_item
+                    )
+                )
+                constrainedHeight(itemViews[pos].icon.id, true)
+                constrainHeight(
+                    itemViews[pos].icon.id,
+                    context.resources.getDimensionPixelSize(
+                        R.dimen.height_curved_outside_bottom_nav_off_icon_item
+                    )
+                )
+
+                connect(
+                    itemViews[pos].title.id, ConstraintSet.START,
+                    itemViews[pos].icon.id, ConstraintSet.START
+                )
+                connect(
+                    itemViews[pos].title.id, ConstraintSet.END,
+                    itemViews[pos].icon.id, ConstraintSet.END
+                )
+                connect(
+                    itemViews[pos].title.id, ConstraintSet.TOP,
+                    itemViews[pos].icon.id, ConstraintSet.BOTTOM
+                )
+                connect(
+                    itemViews[pos].title.id, ConstraintSet.BOTTOM,
+                    ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
+                )
+                constrainHeight(
+                    itemViews[pos].title.id, ConstraintSet.WRAP_CONTENT
+                )
+                constrainWidth(
+                    itemViews[pos].title.id, ConstraintSet.MATCH_CONSTRAINT
+                )
+            }
+
+        }
 
     }
 
-    private fun setupItemMode(iconId: Int, titleId: Int, itemTopBotMargin: Int) {
-
-        ITEM_ON_CONSTRAINT_SET.setDimensionRatio(iconId, "1")
-        ITEM_ON_CONSTRAINT_SET.setMargin(iconId, ConstraintSet.BOTTOM, itemTopBotMargin)
-        ITEM_OFF_CONSTRAINT_SET.setDimensionRatio(iconId, "1")
-        ITEM_OFF_CONSTRAINT_SET.constrainWidth(titleId, ConstraintSet.WRAP_CONTENT)
-
-
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_ON_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.BOTTOM,
-            titleId, ConstraintSet.TOP
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            iconId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.START,
-            ConstraintSet.PARENT_ID, ConstraintSet.START
-        )
-        ITEM_OFF_CONSTRAINT_SET.connect(
-            titleId, ConstraintSet.END,
-            ConstraintSet.PARENT_ID, ConstraintSet.END
-        )
-    }
-
-    private fun setPositionContainer(
-        pos: Int,
-        items: List<CurvedOutsideBotNavItem>
-    ) {
-        val containerId = items[pos].id
-
-        if (pos == 0) {
-            MAIN_CONSTRAINT_SET.connect(
-                containerId, ConstraintSet.START,
-                ConstraintSet.PARENT_ID, ConstraintSet.START
-            )
-        } else {
-            MAIN_CONSTRAINT_SET.connect(
-                containerId, ConstraintSet.START,
-                items[pos - 1].id, ConstraintSet.END
-            )
+    fun selectItem(index: Int) {
+        if (indexSelected != index) {
+            onItemSelectedListener?.invoke(indexSelected, index)
+            moveAnchorTo(index)
         }
-
-        if (pos == (items.size - 1)) {
-            MAIN_CONSTRAINT_SET.connect(
-                containerId, ConstraintSet.END,
-                ConstraintSet.PARENT_ID, ConstraintSet.END
-            )
-        } else {
-            MAIN_CONSTRAINT_SET.connect(
-                containerId, ConstraintSet.END,
-                items[pos + 1].id, ConstraintSet.START
-            )
-        }
-        MAIN_CONSTRAINT_SET.connect(
-            containerId, ConstraintSet.TOP,
-            ConstraintSet.PARENT_ID, ConstraintSet.TOP
-        )
-        MAIN_CONSTRAINT_SET.connect(
-            containerId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
     }
 
     private fun setupChangeBoundsTransition() {
         changeBounds.interpolator = OvershootInterpolator()
-        changeBounds.addListener(myTransitionListener)
     }
 
-    private fun moveAnchorTo(id: Int, view: View? = null) {
-        myTransitionListener.clickedView = view
-        TransitionManager.beginDelayedTransition(this, changeBounds as Transition)
-        MAIN_CONSTRAINT_SET.connect(
-            anchorId, ConstraintSet.START,
-            id, ConstraintSet.START
-        )
-        MAIN_CONSTRAINT_SET.connect(
-            anchorId, ConstraintSet.END,
-            id, ConstraintSet.END
-        )
-        MAIN_CONSTRAINT_SET.connect(
-            anchorId, ConstraintSet.BOTTOM,
-            ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
-        )
-        if (currentAnchorLocationId != 0) {
-            val currentAnchorLocationView =
-                this.findViewById<ConstraintLayout>(currentAnchorLocationId)
-            ITEM_OFF_CONSTRAINT_SET.applyTo(currentAnchorLocationView)
-            setItemToUnselectedState(
-                currentAnchorLocationView.getChildAt(0) as ImageView,
-                currentAnchorLocationView.getChildAt(1) as TextView
+    var indexSelected = -1
+        private set
+
+    private fun moveAnchorTo(index: Int, animated: Boolean = true) {
+
+        if (animated) {
+            TransitionManager.beginDelayedTransition(
+                this, changeBounds as Transition
             )
+
         }
 
-        currentAnchorLocationId = id
+        mainConstraintSet.apply {
 
-        val currentAnchorLocationView = this.findViewById<ConstraintLayout>(currentAnchorLocationId)
-        setItemToSelectedState(
-            currentAnchorLocationView.getChildAt(0) as ImageView,
-            currentAnchorLocationView.getChildAt(1) as TextView
-        )
-        MAIN_CONSTRAINT_SET.applyTo(this)
-        ITEM_ON_CONSTRAINT_SET.applyTo(currentAnchorLocationView)
-    }
+            connect(
+                anchorId, ConstraintSet.START,
+                itemViews[index].icon.id, ConstraintSet.START
+            )
+            connect(
+                anchorId, ConstraintSet.END,
+                itemViews[index].icon.id, ConstraintSet.END
+            )
+            connect(
+                anchorId, ConstraintSet.BOTTOM,
+                ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
+            )
 
-    private fun setItemToSelectedState(icon: ImageView, title: TextView) {
-        icon.setColorFilter(color)
-        title.setTextColor(color)
+            connect(
+                itemViews[index].icon.id, ConstraintSet.BOTTOM,
+                ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
+            )
+            constrainHeight(
+                itemViews[index].icon.id,
+                ConstraintSet.MATCH_CONSTRAINT
+            )
+
+            itemViews[index].icon.setPadding(
+                0, itemPaddingVertical,
+                0, itemPaddingVertical * 2
+            )
+            itemViews[index].icon.setColorFilter(selectedColor)
+
+            connect(
+                itemViews[index].title.id, ConstraintSet.TOP,
+                ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
+            )
+
+            clear(
+                itemViews[index].title.id, ConstraintSet.BOTTOM
+            )
+
+
+            if (indexSelected != -1) {
+                connect(
+                    itemViews[indexSelected].icon.id, ConstraintSet.BOTTOM,
+                    itemViews[indexSelected].title.id, ConstraintSet.TOP
+                )
+                constrainHeight(
+                    itemViews[indexSelected].icon.id,
+                    context.resources.getDimensionPixelSize(
+                        R.dimen.height_curved_outside_bottom_nav_off_icon_item
+                    )
+                )
+                itemViews[indexSelected].icon.setPadding(
+                    0, itemPaddingVertical,
+                    0, 0
+                )
+
+                connect(
+                    itemViews[indexSelected].title.id, ConstraintSet.BOTTOM,
+                    ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
+                )
+                connect(
+                    itemViews[indexSelected].title.id, ConstraintSet.TOP,
+                    itemViews[indexSelected].icon.id, ConstraintSet.BOTTOM
+                )
+
+                setItemToUnselectedState(
+                    itemViews[indexSelected].icon,
+                    itemViews[indexSelected].title
+                )
+
+            }
+
+            indexSelected = index
+
+        }.applyTo(this)
+
+
     }
 
     private fun setItemToUnselectedState(icon: ImageView, title: TextView) {
@@ -303,19 +355,19 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         } else {
             ConstraintSet.END
         }
-        MAIN_CONSTRAINT_SET.connect(
+        mainConstraintSet.connect(
             handlerId, oppositePos,
             ConstraintSet.PARENT_ID, oppositePos
         )
-        MAIN_CONSTRAINT_SET.connect(
+        mainConstraintSet.connect(
             handlerId, toPos,
             anchorId, oppositePos
         )
-        MAIN_CONSTRAINT_SET.connect(
+        mainConstraintSet.connect(
             handlerId, ConstraintSet.TOP,
             ConstraintSet.PARENT_ID, ConstraintSet.TOP
         )
-        MAIN_CONSTRAINT_SET.connect(
+        mainConstraintSet.connect(
             handlerId, ConstraintSet.BOTTOM,
             ConstraintSet.PARENT_ID, ConstraintSet.BOTTOM
         )
@@ -323,14 +375,34 @@ class CurvedOutsideBottomNav : ConstraintLayout {
 
     private fun createHandlerCorner(handlerTopLeftCornerId: Int, handlerTopRightCornerid: Int) {
 
+        val colorPrimary = ContextCompat.getColor(
+            context, TypedValue().apply {
+                context.theme.resolveAttribute(R.attr.colorPrimary, this, true)
+            }.resourceId
+        )
+
         var layoutParamsMatchConstraint = LayoutParams(
             LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_CONSTRAINT
         )
+        val strokeWidth = ceil(context.resources.displayMetrics.density).toInt()
+        LayerDrawable(
+            arrayOf(
+                GradientDrawable().apply {
+                    setStroke(strokeWidth, colorPrimary)
+                },
+                GradientDrawable().apply {
+                    setColor(activeBackgroundColor)
+                }
+            )
+        ).apply {
+            setLayerInset(1, 0, strokeWidth, 0, 0)
+            background = this
+        }
 
         //creating handlerTopLeftCorner
         var gradientDrawable = GradientDrawable()
         var handler = View(context)
-        gradientDrawable.setColor(color)
+        gradientDrawable.setColor(selectedColor)
         gradientDrawable.cornerRadii = floatArrayOf(
             radiusValue, radiusValue, 0f, 0f, 0f, 0f, 0f, 0f
         )
@@ -342,10 +414,11 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         layoutParamsMatchConstraint = LayoutParams(
             LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_CONSTRAINT
         )
+
         //creating handlerTopRightCorner
         gradientDrawable = GradientDrawable()
         handler = View(context)
-        gradientDrawable.setColor(color)
+        gradientDrawable.setColor(selectedColor)
         gradientDrawable.cornerRadii = floatArrayOf(
             0f, 0f, radiusValue, radiusValue, 0f, 0f, 0f, 0f
         )
@@ -356,39 +429,43 @@ class CurvedOutsideBottomNav : ConstraintLayout {
         layoutParamsMatchConstraint = LayoutParams(
             LayoutParams.MATCH_CONSTRAINT, LayoutParams.MATCH_CONSTRAINT
         )
+
         //creating handlerBottomCorner
         val anchor = CurvedOutsideTop(context, radiusValue)
-        val typedValue = TypedValue()
-        context.theme.resolveAttribute(R.attr.colorPrimary, typedValue, true)
-        anchor.setColor(ContextCompat.getColor(context, typedValue.resourceId))
-
+        anchor.setColor(colorPrimary)
         anchor.id = anchorId
         addView(anchor, layoutParamsMatchConstraint)
     }
 
-    private inner class CurvedOutsideTransitionManager : Transition.TransitionListener {
+    override fun onSaveInstanceState(): Parcelable? {
+        return Bundle().apply {
+            putParcelable(SUPER_SAVE_STATE_KEY, super.onSaveInstanceState())
+            putInt(SELECTED_ITEM_KEY, indexSelected)
+        }
+    }
 
-        var clickedView: View? = null
-        override fun onTransitionStart(p0: Transition?) {}
-
-        override fun onTransitionEnd(p0: Transition?) {
-            post {
-                clickedView?.let {
-                    onItemSelectedListener?.onClickListener(it)
+    override fun onRestoreInstanceState(state: Parcelable?) {
+        if (state is Bundle) {
+            state.getInt(SELECTED_ITEM_KEY, -1).let {
+                if (it != -1) {
+                    selectItem(it)
                 }
             }
+            return super.onRestoreInstanceState(state.getParcelable(SUPER_SAVE_STATE_KEY))
         }
-
-        override fun onTransitionCancel(p0: Transition?) {}
-
-        override fun onTransitionPause(p0: Transition?) {}
-
-        override fun onTransitionResume(p0: Transition?) {}
-
+        super.onRestoreInstanceState(state)
     }
 
-    interface OnItemSelectedListener {
-        fun onClickListener(view: View)
-    }
 
+    data class Item(
+        val icon: ImageView,
+        val title: TextView
+    )
+
+
+    companion object {
+        private const val TAG = "CurvedOutsideBottomNav"
+        private const val SELECTED_ITEM_KEY = "idAnchored"
+        private const val SUPER_SAVE_STATE_KEY = "superSaveState"
+    }
 }
