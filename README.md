@@ -2,7 +2,7 @@
 
 Use to get curved bottom
 
-![Example](./images/img1.png)
+![Example](sc/img1.png)
 
 Step 1. Add the JitPack repository to your build file
 ```

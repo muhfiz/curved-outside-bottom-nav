@@ -1,3 +1,2 @@
 rootProject.name = "Curved Outside Bottom Navigation Bar"
-include ':app'
-include ':curved-outside-bottom-nav'
+include ':sample', ':library'
