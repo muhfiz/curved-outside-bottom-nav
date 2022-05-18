@@ -2,15 +2,23 @@ package curved.outside.curved_outside_bottom_nav
 
 import android.animation.Animator
 import android.animation.ValueAnimator
+import android.annotation.SuppressLint
 import android.content.Context
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
+import android.os.Build
+import android.text.Layout
+import android.text.StaticLayout
+import android.text.TextPaint
 import android.util.AttributeSet
 import android.util.Log
+import android.view.MotionEvent
 import android.view.View
+import android.view.ViewConfiguration
 import android.view.animation.OvershootInterpolator
+import androidx.annotation.DrawableRes
 import kotlin.math.abs
 
 
@@ -24,13 +32,25 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
         color = Color.MAGENTA
         isAntiAlias = true
     }
+    private val textPaint = TextPaint().apply {
+        isAntiAlias = true
+        textSize = 30f
+        color = Color.YELLOW
+    }
+    private var onItemSelectedListener: ((index: Int) -> Unit)? = null
+    private var initialTouchX = 0f
+
+    /**
+     * the space within the anchor bottom and the view bottom
+     */
+    private var anchorPaddingBottom: Float = context.resources.displayMetrics.density * 5
 
     /**
      * set how the arc work for side that curved in each item
      *
      */
     private var curveRatio = 0.2f
-    private val items = ArrayList<CurvedOutsideBotNavItem>()
+    private val items = ArrayList<Item>()
 
     /**
      * Set to true when you want to use the close line in the top
@@ -46,7 +66,9 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
      * set the duration of animation when changes the position
      * per pixels change
      */
-    var transitionRatioDurationPerPixels = 1.5f
+    var transitionRatioDurationPerPixels = 1.25f
+
+    private var cacheTextLayouts = ArrayList<StaticLayout>()
 
     var closeLineWidth = context.resources.displayMetrics.density * 1
     private var fromX = 0f
@@ -100,12 +122,53 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
         }
     }
 
-    fun setItems(vararg item: CurvedOutsideBotNavItem) {
-        items.addAll(item)
+    fun setTextSize(size: Float) {
+        if (size == textPaint.textSize) return
+        textPaint.textSize = size
+        invalidate()
     }
 
-    private fun moveAnchorTo(pos: Int) {
-        val anchors = getAnchorForTransition(pos)
+    /**
+     *
+     * @param item vararg of items
+     * @param onItemSelectedListener the selectedListener that wil lbe called when item's selected
+     */
+    fun setItems(vararg item: Item, onItemSelectedListener: ((index: Int) -> Unit)? = null) {
+        cacheTextLayouts.clear()
+        items.addAll(item)
+        this.onItemSelectedListener = onItemSelectedListener
+    }
+
+
+    override fun onTouchEvent(event: MotionEvent?): Boolean {
+        event?.apply {
+            when (actionMasked) {
+                MotionEvent.ACTION_DOWN -> {
+                    initialTouchX = this.x
+                }
+                MotionEvent.ACTION_UP -> {
+                    val selectedItemIndex = (initialTouchX / getItemWidth()).toInt()
+                    val itemWidth = getItemWidth()
+                    if (
+                        this.x >= selectedItemIndex * itemWidth
+                        && this.x <= (selectedItemIndex + 1) * itemWidth
+                    ) {
+                        selectItem(selectedItemIndex)
+                    } else return false
+                }
+            }
+        }
+
+        return true
+    }
+
+    private fun selectItem(index: Int) {
+        onItemSelectedListener?.invoke(index)
+        moveAnchorTo(index)
+    }
+
+    private fun moveAnchorTo(index: Int) {
+        val anchors = getAnchorForTransition(index)
         fromX = anchors[0]
         destinationX = anchors[1]
         transitionAnimation.start()
@@ -115,10 +178,10 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
      *
      * @return array for fromX and destinationX
      */
-    private fun getAnchorForTransition(pos: Int): FloatArray {
+    private fun getAnchorForTransition(index: Int): FloatArray {
         val itemWidth = getItemWidth()
-        val fromX = itemWidth * (pos - 1)
-        return floatArrayOf(fromX.toFloat(), (fromX + itemWidth).toFloat())
+        val fromX = currentX
+        return floatArrayOf(fromX, itemWidth.toFloat() * (index))
     }
 
     private fun getItemWidth(): Int {
@@ -128,8 +191,56 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
     override fun onDraw(canvas: Canvas?) {
         path.reset()
         generatePathIn()
-        canvas?.drawPath(path, paint)
+        canvas?.apply {
+            drawPath(path, paint)
+            drawTitleAndIcon(canvas)
+        }
         super.onDraw(canvas)
+    }
+
+    private fun drawTitleAndIcon(canvas: Canvas) {
+        val itemWidth = getItemWidth().toFloat()
+        val padHorCausedByCurve = itemWidth * (curveRatio / 2f)
+        canvas.save()
+        items.forEachIndexed { index, item ->
+            var textLayout = try {
+                cacheTextLayouts[index]
+            } catch (e: IndexOutOfBoundsException) {
+                getDefaultStaticLayout(
+                    item.title,
+                    (itemWidth - padHorCausedByCurve * 2).toInt()
+                ).apply {
+                    cacheTextLayouts.add(index, this)
+                }
+            }
+
+            val dy = measuredHeight -
+                    anchorPaddingBottom - textLayout.height
+            canvas.translate(
+                padHorCausedByCurve, dy
+            )
+            textLayout.draw(canvas)
+            canvas.translate(itemWidth - padHorCausedByCurve, -dy)
+        }
+        canvas.restore()
+    }
+
+    @SuppressLint("WrongConstant")
+    private fun getDefaultStaticLayout(text: String, width: Int): StaticLayout {
+        return if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            StaticLayout.Builder
+                .obtain(text, 0, text.length, textPaint, width)
+                .setAlignment(Layout.Alignment.ALIGN_CENTER)
+                .setBreakStrategy(Layout.BREAK_STRATEGY_BALANCED)
+                .setHyphenationFrequency(Layout.HYPHENATION_FREQUENCY_FULL)
+                .build()
+        } else {
+            StaticLayout(
+                text, textPaint, width,
+                Layout.Alignment.ALIGN_CENTER, 1f,
+                0f, true
+            )
+        }
     }
 
     private fun generatePathIn() {
@@ -158,11 +269,10 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
     /**
      * call to populate the path with the arcs
      */
-    fun generateArcs(
+    private fun generateArcs(
         startX: Float, width: Float,
         arcCircleWidth: Float,
-        arcCircleHeight: Float,
-        padBottom: Float = 10f
+        arcCircleHeight: Float
     ) {
         var x = startX
         path.arcTo(
@@ -171,16 +281,20 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
             270f, 90f, false
         )
         path.arcTo(
-            x + arcCircleWidth / 2, measuredHeight - arcCircleHeight - padBottom,
-            x + arcCircleWidth / 2 + arcCircleWidth, measuredHeight.toFloat() - padBottom,
-            180f, -90f, false
+            x + arcCircleWidth / 2,
+            measuredHeight - arcCircleHeight - anchorPaddingBottom,
+            x + arcCircleWidth / 2 + arcCircleWidth,
+            measuredHeight.toFloat() - anchorPaddingBottom,
+            180f,
+            -90f,
+            false
         )
 
         x += width - arcCircleWidth / 2
         path.arcTo(
             x - arcCircleWidth,
-            measuredHeight - arcCircleHeight - padBottom,
-            x, measuredHeight.toFloat() - padBottom,
+            measuredHeight - arcCircleHeight - anchorPaddingBottom,
+            x, measuredHeight.toFloat() - anchorPaddingBottom,
             90f, -90f, false
         )
         path.arcTo(
@@ -193,6 +307,11 @@ class CurvedOutsideBottomNav @JvmOverloads constructor(
 
     }
 
+
+    data class Item(
+        val title: String,
+        @DrawableRes val iconResourceId: Int
+    )
 
     companion object {
         private const val TAG = "CurvedOutsideBottomNav"
